@@ -1,4 +1,4 @@
-name: Package Airbyte Images (low-disk)
+name: Batch1 - Core images
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ env:
   TAG: 2.0.1
 
 jobs:
-  package:
+  pack:
     runs-on: ubuntu-latest
     steps:
       - name: Maximize disk space
@@ -16,47 +16,26 @@ jobs:
           sudo docker image prune -af
           df -h
 
-      - name: Pull & save & upload (one-by-one)
+      - name: Pull & save & upload
         run: |
-          images=(
+          list=(
             airbyte/bootloader:2.0.1
             airbyte/server:2.0.1
             airbyte/worker:2.0.1
-            airbyte/workload-launcher:2.0.1
-            airbyte/workload-api-server:2.0.1
-            airbyte/connector-builder-server:2.0.1
-            airbyte/metrics-reporter:2.0.1
             airbyte/cron:2.0.1
-            airbyte/keycloak:2.0.1
-            airbyte/keycloak-setup:2.0.1
-            airbyte/connector-rollout-worker:2.0.1
-            airbyte/db:2.0.1
-            temporalio/auto-setup:1.27.2
-            temporalio/ui:2.30.1
-            minio/minio:RELEASE.2023-11-20T22-40-07Z
-            postgres:13-alpine
           )
-
-          for img in "${images[@]}"; do
-            # 生成文件名  docker.io/<ns>/<img>:tag -> <img>-<tag>.tar
-            file=$(basename "${img%:*}")-${img##*:}.tar
-            file=$(echo "$file" | tr '/:' '-')
-
-            echo ">>> Pull $img"
-            docker pull "$img"
-
-            echo ">>> Save $img -> $file"
-            docker save "$img" > "$file"
-
-            echo ">>> Upload $file"
-            # actions/upload-artifact@v4 支持单文件通配符
-            echo "FILE=$file" >> $GITHUB_ENV
-            docker image prune -af   # 立即清镜像
+          for img in "${list[@]}"; do
+            file=$(basename "$img")-${TAG}.tar
+            docker pull "$img:$TAG"
+            docker save "$img:$TAG" > "$file"
+            docker image prune -af
           done
-        # 用官方 action 逐个上传（循环内调用）
-      - name: Upload each tar
+          # 统一上传
+          find . -name "*.tar" -exec echo "FILE={}" \; >> $GITHUB_ENV
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.FILE }}
-          path: ${{ env.FILE }}
+          name: batch1-core-${{ env.TAG }}
+          path: "*.tar"
           retention-days: 30
