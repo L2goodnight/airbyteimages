@@ -1,0 +1,48 @@
+name: Save Airbyte Workload Batch
+
+on:
+  workflow_dispatch:
+
+env:
+  AIRBYTE_TAG: 2.0.1
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Pull images
+        run: |
+          images=(
+            airbyte/workload-launcher
+            airbyte/workload-api-server
+            airbyte/metrics-reporter
+            airbyte/db
+            airbyte/connector-rollout-worker
+          )
+          for img in "${images[@]}"; do
+            echo ">>> Pulling $img"
+            docker pull "$img:${{ env.AIRBYTE_TAG }}"
+          done
+
+      - name: Save images to tar files
+        run: |
+          mkdir -p images
+          docker save -o images/airbyte-workload-launcher-${{ env.AIRBYTE_TAG }}.tar        airbyte/workload-launcher:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-workload-api-server-${{ env.AIRBYTE_TAG }}.tar      airbyte/workload-api-server:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-metrics-reporter-${{ env.AIRBYTE_TAG }}.tar         airbyte/metrics-reporter:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-db-${{ env.AIRBYTE_TAG }}.tar                       airbyte/db:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-connector-rollout-worker-${{ env.AIRBYTE_TAG }}.tar airbyte/connector-rollout-worker:${{ env.AIRBYTE_TAG }}
+
+      - name: Combine into single archive
+        run: |
+          tar -czf airbyte-workload-batch-${{ env.AIRBYTE_TAG }}.tar.gz images/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: airbyte-workload-batch-${{ env.AIRBYTE_TAG }}
+          path: airbyte-workload-batch-${{ env.AIRBYTE_TAG }}.tar.gz
+          retention-days: 30
