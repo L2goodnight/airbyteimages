@@ -16,8 +16,8 @@ jobs:
       - name: Pull images
         run: |
           images=(
-            airbyte/keycloak
-            airbyte/keycloak-setup
+            airbyte/keycloak:2.0.1
+            airbyte/keycloak-setup:2.0.1
             temporalio/auto-setup:1.27.2
             temporalio/ui:2.30.1
             minio/minio:RELEASE.2023-11-20T22-40-07Z
