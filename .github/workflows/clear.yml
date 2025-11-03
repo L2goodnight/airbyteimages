@@ -1,9 +1,1 @@
-- name: Free disk space
-  run: |
-    sudo rm -rf /usr/share/dotnet
-    sudo rm -rf /opt/ghc
-    sudo rm -rf "/usr/local/share/boost"
-    sudo rm -rf "$AGENT_TOOLSDIRECTORY"      # 包含多版本 Python/Java/Go
-    sudo docker image prune -af              # 清掉所有悬空/未用镜像
-    echo "=== After cleanup ==="
-    df -h
+
