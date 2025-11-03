@@ -1,0 +1,50 @@
+name: Save Airbyte Deps Batch
+
+on:
+  workflow_dispatch:
+
+env:
+  AIRBYTE_TAG: 2.0.1
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Pull images
+        run: |
+          images=(
+            airbyte/keycloak
+            airbyte/keycloak-setup
+            temporalio/auto-setup:1.27.2
+            temporalio/ui:2.30.1
+            minio/minio:RELEASE.2023-11-20T22-40-07Z
+            postgres:13-alpine
+          )
+          for img in "${images[@]}"; do
+            echo ">>> Pulling $img"
+            docker pull "$img"
+          done
+
+      - name: Save images to tar files
+        run: |
+          mkdir -p images
+          docker save -o images/airbyte-keycloak-${{ env.AIRBYTE_TAG }}.tar           airbyte/keycloak:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-keycloak-setup-${{ env.AIRBYTE_TAG }}.tar     airbyte/keycloak-setup:${{ env.AIRBYTE_TAG }}
+          docker save -o images/temporal-auto-setup-1.27.2.tar                        temporalio/auto-setup:1.27.2
+          docker save -o images/temporal-ui-2.30.1.tar                                temporalio/ui:2.30.1
+          docker save -o images/minio-2023-11-20.tar                                  minio/minio:RELEASE.2023-11-20T22-40-07Z
+          docker save -o images/postgres-13-alpine.tar                                postgres:13-alpine
+
+      - name: Combine into single archive
+        run: |
+          tar -czf airbyte-deps-batch-${{ env.AIRBYTE_TAG }}.tar.gz images/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: airbyte-deps-batch-${{ env.AIRBYTE_TAG }}
+          path: airbyte-deps-batch-${{ env.AIRBYTE_TAG }}.tar.gz
+          retention-days: 30
