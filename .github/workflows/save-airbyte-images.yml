@@ -1,0 +1,85 @@
+name: Save Airbyte Images
+
+on:
+  workflow_dispatch:          # 手动触发
+  # schedule:                 # 也可定时，比如每月 1 号
+  #   - cron: '0 0 1 * *'
+
+env:
+  AIRBYTE_TAG: 2.0.1          # 镜像版本
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3   # 可选，加速/隔离
+
+      - name: Pull all required images
+        run: |
+          images=(
+            airbyte/bootloader
+            airbyte/server
+            airbyte/worker
+            airbyte/workload-launcher
+            airbyte/workload-api-server
+            airbyte/connector-builder-server
+            airbyte/metrics-reporter
+            airbyte/cron
+            airbyte/keycloak
+            airbyte/keycloak-setup
+            airbyte/connector-rollout-worker
+            airbyte/db
+            temporalio/auto-setup:1.27.2
+            temporalio/ui:2.30.1
+            minio/minio:RELEASE.2023-11-20T22-40-07Z
+            postgres:13-alpine
+          )
+          for img in "${images[@]}"; do
+            echo ">>> Pulling $img"
+            docker pull "$img"
+          done
+
+      - name: Save images to tar files
+        run: |
+          mkdir -p images
+          docker save -o images/airbyte-bootloader-${{ env.AIRBYTE_TAG }}.tar        airbyte/bootloader:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-server-${{ env.AIRBYTE_TAG }}.tar            airbyte/server:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-worker-${{ env.AIRBYTE_TAG }}.tar            airbyte/worker:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-workload-launcher-${{ env.AIRBYTE_TAG }}.tar airbyte/workload-launcher:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-workload-api-server-${{ env.AIRBYTE_TAG }}.tar airbyte/workload-api-server:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-connector-builder-server-${{ env.AIRBYTE_TAG }}.tar airbyte/connector-builder-server:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-metrics-reporter-${{ env.AIRBYTE_TAG }}.tar  airbyte/metrics-reporter:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-cron-${{ env.AIRBYTE_TAG }}.tar              airbyte/cron:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-keycloak-${{ env.AIRBYTE_TAG }}.tar          airbyte/keycloak:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-keycloak-setup-${{ env.AIRBYTE_TAG }}.tar    airbyte/keycloak-setup:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-connector-rollout-worker-${{ env.AIRBYTE_TAG }}.tar airbyte/connector-rollout-worker:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-db-${{ env.AIRBYTE_TAG }}.tar                airbyte/db:${{ env.AIRBYTE_TAG }}
+          docker save -o images/temporal-auto-setup-1.27.2.tar                       temporalio/auto-setup:1.27.2
+          docker save -o images/temporal-ui-2.30.1.tar                               temporalio/ui:2.30.1
+          docker save -o images/minio-2023-11-20.tar                                 minio/minio:RELEASE.2023-11-20T22-40-07Z
+          docker save -o images/postgres-13-alpine.tar                               postgres:13-alpine
+
+      - name: Combine into single archive for faster upload
+        run: |
+          tar -czf airbyte-images-${{ env.AIRBYTE_TAG }}.tar.gz images/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: airbyte-images-${{ env.AIRBYTE_TAG }}
+          path: airbyte-images-${{ env.AIRBYTE_TAG }}.tar.gz
+          retention-days: 30   # 按需调整保留天数
+
+      # （可选）自动创建 Release，方便浏览器下载
+      - name: Create Release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.AIRBYTE_TAG }}-${{ github.run_number }}
+          name: Airbyte ${{ env.AIRBYTE_TAG }} Images
+          body: |
+            包含 Airbyte ${{ env.AIRBYTE_TAG }} 全部镜像 tar 包，内网离线导入使用。
+          files: airbyte-images-${{ env.AIRBYTE_TAG }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
