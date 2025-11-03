@@ -1,0 +1,35 @@
+name: Save Airbyte CBS Batch
+
+on:
+  workflow_dispatch:
+
+env:
+  AIRBYTE_TAG: 2.0.1
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Pull image
+        run: |
+          echo ">>> Pulling airbyte/connector-builder-server"
+          docker pull "airbyte/connector-builder-server:${{ env.AIRBYTE_TAG }}"
+
+      - name: Save image to tar
+        run: |
+          mkdir -p images
+          docker save -o images/airbyte-connector-builder-server-${{ env.AIRBYTE_TAG }}.tar airbyte/connector-builder-server:${{ env.AIRBYTE_TAG }}
+
+      - name: Combine into single archive
+        run: |
+          tar -czf airbyte-cbs-batch-${{ env.AIRBYTE_TAG }}.tar.gz images/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: airbyte-cbs-batch-${{ env.AIRBYTE_TAG }}
+          path: airbyte-cbs-batch-${{ env.AIRBYTE_TAG }}.tar.gz
+          retention-days: 30
