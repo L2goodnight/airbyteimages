@@ -1,4 +1,4 @@
-name: Save Airbyte Images (4-core-batch)
+name: Save Airbyte Images
 
 on:
   workflow_dispatch:
@@ -10,33 +10,37 @@ jobs:
   save:
     runs-on: ubuntu-latest
     steps:
-      - name: Maximize disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost "$AGENT_TOOLSDIRECTORY"
-          sudo docker image prune -af
-          df -h
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Pull & save & upload (4 images)
+      - name: Pull all required images
         run: |
           images=(
-            airbyte/bootloader:2.0.1
-            airbyte/server:2.0.1
-            airbyte/worker:2.0.1
-            airbyte/cron:2.0.1
+            airbyte/bootloader
+            airbyte/server
+            airbyte/worker
+            airbyte/cron
           )
-          mkdir -p images
           for img in "${images[@]}"; do
-            echo ">>> Pull $img"
+            echo ">>> Pulling $img"
             docker pull "$img:${{ env.AIRBYTE_TAG }}"
-            file=$(basename "$img")-${{ env.AIRBYTE_TAG }}.tar
-            echo ">>> Save $img -> images/$file"
-            docker save "$img:${{ env.AIRBYTE_TAG }}" > "images/$file"
-            docker image prune -af   # 立即清镜像
           done
 
-      - name: Upload artifacts
+      - name: Save images to tar files
+        run: |
+          mkdir -p images
+          docker save -o images/airbyte-bootloader-${{ env.AIRBYTE_TAG }}.tar airbyte/bootloader:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-server-${{ env.AIRBYTE_TAG }}.tar     airbyte/server:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-worker-${{ env.AIRBYTE_TAG }}.tar     airbyte/worker:${{ env.AIRBYTE_TAG }}
+          docker save -o images/airbyte-cron-${{ env.AIRBYTE_TAG }}.tar       airbyte/cron:${{ env.AIRBYTE_TAG }}
+
+      - name: Combine into single archive for faster upload
+        run: |
+          tar -czf airbyte-images-${{ env.AIRBYTE_TAG }}.tar.gz images/
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: airbyte-core-${{ env.AIRBYTE_TAG }}
-          path: images/*.tar
+          name: airbyte-images-${{ env.AIRBYTE_TAG }}
+          path: airbyte-images-${{ env.AIRBYTE_TAG }}.tar.gz
           retention-days: 30
