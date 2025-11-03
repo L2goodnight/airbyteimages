@@ -18,18 +18,18 @@ jobs:
       - name: Pull all required images
         run: |
           images=(
-            airbyte/bootloader
-            airbyte/server
-            airbyte/worker
-            airbyte/workload-launcher
-            airbyte/workload-api-server
-            airbyte/connector-builder-server
-            airbyte/metrics-reporter
-            airbyte/cron
-            airbyte/keycloak
-            airbyte/keycloak-setup
-            airbyte/connector-rollout-worker
-            airbyte/db
+            airbyte/bootloader:2.0.1
+            airbyte/server:2.0.1
+            airbyte/worker:2.0.1
+            airbyte/workload-launcher:2.0.1
+            airbyte/workload-api-server:2.0.1
+            airbyte/connector-builder-server:2.0.1
+            airbyte/metrics-reporter:2.0.1
+            airbyte/cron:2.0.1
+            airbyte/keycloak:2.0.1
+            airbyte/keycloak-setup:2.0.1
+            airbyte/connector-rollout-worker:2.0.1
+            airbyte/db:2.0.1
             temporalio/auto-setup:1.27.2
             temporalio/ui:2.30.1
             minio/minio:RELEASE.2023-11-20T22-40-07Z
