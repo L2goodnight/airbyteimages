@@ -1,13 +1,13 @@
-name: Batch1 - Core images
+name: Save Airbyte Images (4-core-batch)
 
 on:
   workflow_dispatch:
 
 env:
-  TAG: 2.0.1
+  AIRBYTE_TAG: 2.0.1
 
 jobs:
-  pack:
+  save:
     runs-on: ubuntu-latest
     steps:
       - name: Maximize disk space
@@ -16,26 +16,27 @@ jobs:
           sudo docker image prune -af
           df -h
 
-      - name: Pull & save & upload
+      - name: Pull & save & upload (4 images)
         run: |
-          list=(
+          images=(
             airbyte/bootloader:2.0.1
             airbyte/server:2.0.1
             airbyte/worker:2.0.1
             airbyte/cron:2.0.1
           )
-          for img in "${list[@]}"; do
-            file=$(basename "$img")-${TAG}.tar
-            docker pull "$img:$TAG"
-            docker save "$img:$TAG" > "$file"
-            docker image prune -af
+          mkdir -p images
+          for img in "${images[@]}"; do
+            echo ">>> Pull $img"
+            docker pull "$img:${{ env.AIRBYTE_TAG }}"
+            file=$(basename "$img")-${{ env.AIRBYTE_TAG }}.tar
+            echo ">>> Save $img -> images/$file"
+            docker save "$img:${{ env.AIRBYTE_TAG }}" > "images/$file"
+            docker image prune -af   # 立即清镜像
           done
-          # 统一上传
-          find . -name "*.tar" -exec echo "FILE={}" \; >> $GITHUB_ENV
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: batch1-core-${{ env.TAG }}
-          path: "*.tar"
+          name: airbyte-core-${{ env.AIRBYTE_TAG }}
+          path: images/*.tar
           retention-days: 30
